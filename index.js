@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const port = process.env.PORT || 3000;
 const cors = require("cors");
@@ -22,7 +22,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
     const userCollection = await client
       .db("HouseHunterDB")
@@ -64,8 +64,6 @@ async function run() {
           .status(404)
           .json({ message: "User not found.", status: false });
       }
-
-      console.log(email, password, existingUser);
     });
 
     // new house
@@ -84,6 +82,92 @@ async function run() {
       }
       const results = await houseCollection.find(query).toArray();
       res.send(results);
+    });
+
+    // get all house
+    app.get("/allhouse", async (req, res) => {
+      const results = await houseCollection.find().toArray();
+      res.send(results);
+    });
+
+    // find house by id
+    app.get("/findhouseby/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const results = await houseCollection.findOne(query);
+      res.send(results);
+    });
+
+    //find user by email
+    app.get("/finduser/:email", async (req, res) => {
+      const email = req.params?.email;
+      const query = { email: email };
+      const results = await userCollection.findOne(query);
+      res.send(results);
+    });
+
+    // new book house added
+    app.post("/bookinghouse", async (req, res) => {
+      const newBooking = req.body;
+      console.log(newBooking);
+      const results = await houseCollection.insertOne(newBooking);
+      res.status(200).send(results);
+    });
+
+    // load individual owner booked House
+    app.get("/findownerbooked", async (req, res) => {
+      const email = req.query?.email;
+      let query = {};
+      if (email) {
+        query = { email: email, status: "booked" };
+      }
+      const results = await houseCollection.find(query).toArray();
+      res.send(results);
+    });
+
+    // load individual renter booked House
+    app.get("/findrenterbooked", async (req, res) => {
+      const email = req.query?.email;
+      let query = {};
+      if (email) {
+        query = { customerEmail: email };
+      }
+      const results = await houseCollection.find(query).toArray();
+      res.send(results);
+    });
+
+    // delete house
+    app.delete("/deletedhouse/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const results = await houseCollection.deleteOne(query);
+      res.send(results);
+    });
+
+    app.put("/house/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const updateHouse = req.body;
+      console.log(updateHouse);
+      const options = { upsert: true };
+      const house = {
+        $set: {
+          houseName: updateHouse.houseName,
+          address: updateHouse.address,
+          mobileNumber: updateHouse.mobileNumber,
+          url: updateHouse.url,
+          description: updateHouse.description,
+          roomSize: updateHouse.roomSize,
+          rentTk: updateHouse.rentTk,
+          date: updateHouse.date,
+          city: updateHouse.city,
+          bedrooms: updateHouse.bedrooms,
+          bathrooms: updateHouse.bathrooms,
+        },
+      };
+
+      const result = await houseCollection.updateOne(query, house, options);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
